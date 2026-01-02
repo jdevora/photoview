@@ -17,9 +17,12 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 	router.HandleFunc("/{name}", func(w http.ResponseWriter, r *http.Request) {
 		mediaName := mux.Vars(r)["name"]
 
+		log.Debug(r.Context(), "Photo request received", "media_name", mediaName)
+
 		var mediaURL models.MediaURL
 		result := db.Model(&models.MediaURL{}).Joins("Media").Select("media_urls.*").Where("media_urls.media_name = ?", mediaName).Scan(&mediaURL)
 		if err := result.Error; err != nil {
+			log.Warn(r.Context(), "MediaURL not found in database", "media_name", mediaName, "error", err)
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("404"))
 			return
@@ -49,7 +52,10 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 			return
 		}
 
+		log.Debug(r.Context(), "Serving photo", "media_name", mediaName, "cached_path", cachedPath, "purpose", mediaURL.Purpose)
+
 		if _, err := os.Stat(cachedPath); os.IsNotExist((err)) {
+			log.Warn(r.Context(), "Photo file not found in cache, attempting to reprocess", "media_name", mediaName, "cached_path", cachedPath)
 			// err := db.Transaction(func(tx *gorm.DB) error {
 			if err = scanner.ProcessSingleMediaFunc(r.Context(), db, media); err != nil {
 				log.Error(r.Context(), "processing image not found in cache",
@@ -68,6 +74,7 @@ func RegisterPhotoRoutes(db *gorm.DB, router *mux.Router) {
 				w.Write([]byte(internalServerError))
 				return
 			}
+			log.Info(r.Context(), "Photo successfully reprocessed and found in cache", "media_name", mediaName, "cached_path", cachedPath)
 		}
 
 		// Allow caching the resource

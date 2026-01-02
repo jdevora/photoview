@@ -31,6 +31,10 @@ export interface getMyAlbums_myAlbums {
   id: string;
   title: string;
   /**
+   * Whether or not the album is marked as favorite by the logged in user
+   */
+  favorite: boolean;
+  /**
    * An image in this album used for previewing this album
    */
   thumbnail: getMyAlbums_myAlbums_thumbnail | null;

@@ -10,6 +10,12 @@ export default defineConfig({
   envPrefix: ['VITE_', 'REACT_APP_'],
   server: {
     port: 1234,
+    proxy: {
+      '/api': {
+        target: 'http://api:4001',
+        changeOrigin: true,
+      },
+    },
   },
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' },

@@ -17,12 +17,22 @@ const getAlbumsQuery = gql`
     ) {
       id
       title
+      favorite
       thumbnail {
         id
         thumbnail {
           url
         }
       }
+    }
+  }
+`
+
+export const FAVORITE_ALBUM_MUTATION = gql`
+  mutation favoriteAlbum($albumId: ID!, $favorite: Boolean!) {
+    favoriteAlbum(albumId: $albumId, favorite: $favorite) {
+      id
+      favorite
     }
   }
 `
