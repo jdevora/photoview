@@ -16,6 +16,7 @@ import (
 	"github.com/photoview/photoview/api/graphql/models"
 	"github.com/photoview/photoview/api/graphql/models/actions"
 	"github.com/photoview/photoview/api/scanner"
+	"github.com/photoview/photoview/api/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -342,19 +343,8 @@ func (r *userResolver) RootAlbums(ctx context.Context, obj *models.User) (albums
 	return
 }
 
-// User returns api.UserResolver implementation.
-func (r *Resolver) User() api.UserResolver { return &userResolver{r} }
-
-type userResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *userPreferencesResolver) DefaultLandingPage(ctx context.Context, obj *models.UserPreferences) (*string, error) {
+// DefaultLandingPage is the resolver for the defaultLandingPage field.
+func (r *userPreferencesResolver) DefaultLandingPage(ctx context.Context, obj *models.UserPreferences) (*string, error) {
 	// If no defaultLandingPage is set, return nil
 	if obj.DefaultLandingPage == nil {
 		return nil, nil
@@ -381,8 +371,12 @@ type userResolver struct{ *Resolver }
 	// Return the original value if the feature is enabled
 	return obj.DefaultLandingPage, nil
 }
-func (r *Resolver) UserPreferences() api.UserPreferencesResolver {
-	return &userPreferencesResolver{r}
-}
+
+// User returns api.UserResolver implementation.
+func (r *Resolver) User() api.UserResolver { return &userResolver{r} }
+
+// UserPreferences returns api.UserPreferencesResolver implementation.
+func (r *Resolver) UserPreferences() api.UserPreferencesResolver { return &userPreferencesResolver{r} }
+
+type userResolver struct{ *Resolver }
 type userPreferencesResolver struct{ *Resolver }
-*/
