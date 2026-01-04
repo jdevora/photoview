@@ -49,6 +49,7 @@ export const AlbumFavoriteButton = ({
       },
     },
     refetchQueries: ['getMyAlbums'],
+    awaitRefetchQueries: true,
   })
 
   const handleClick = (e: React.MouseEvent) => {
