@@ -50,6 +50,7 @@ const AlbumsPage = () => {
         orderBy: orderParams.orderBy,
         orderDirection: orderParams.orderDirection,
       },
+      fetchPolicy: 'cache-and-network',
     }
   )
 
