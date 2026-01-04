@@ -28,6 +28,13 @@ type UserMediaData struct {
 	Favorite bool `gorm:"not null;default:false"`
 }
 
+type UserAlbumData struct {
+	ModelTimestamps
+	UserID   int  `gorm:"primaryKey;autoIncrement:false"`
+	AlbumID  int  `gorm:"primaryKey;autoIncrement:false"`
+	Favorite bool `gorm:"not null;default:false"`
+}
+
 type UserAlbums struct {
 	UserID  int `gorm:"primaryKey;autoIncrement:false;constraint:OnDelete:CASCADE;"`
 	AlbumID int `gorm:"primaryKey;autoIncrement:false;constraint:OnDelete:CASCADE;"`
@@ -232,4 +239,24 @@ func (user *User) FavoriteMedia(db *gorm.DB, mediaID int, favorite bool) (*Media
 	}
 
 	return &media, nil
+}
+
+// FavoriteAlbum sets/clears an album as favorite for the user
+func (user *User) FavoriteAlbum(db *gorm.DB, albumID int, favorite bool) (*Album, error) {
+	userAlbumData := UserAlbumData{
+		UserID:   user.ID,
+		AlbumID:  albumID,
+		Favorite: favorite,
+	}
+
+	if err := db.Clauses(clause.OnConflict{UpdateAll: true}).Create(&userAlbumData).Error; err != nil {
+		return nil, errors.Wrapf(err, "update user favorite album in database")
+	}
+
+	var album Album
+	if err := db.First(&album, albumID).Error; err != nil {
+		return nil, errors.Wrap(err, "get album from database after favorite update")
+	}
+
+	return &album, nil
 }

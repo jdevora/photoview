@@ -162,6 +162,7 @@ var database_models []interface{} = []interface{}{
 	&models.VideoMetadata{},
 	&models.ShareToken{},
 	&models.UserMediaData{},
+	&models.UserAlbumData{},
 	&models.UserAlbums{},
 	&models.UserPreferences{},
 

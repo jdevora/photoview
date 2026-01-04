@@ -24,20 +24,36 @@ func MyAlbums(db *gorm.DB, user *models.User, order *models.Ordering, paginate *
 
 	query := db.Model(models.Album{}).Where("id IN (?)", userAlbumIDs)
 
+	query = favoritesQuery(showEmpty, db, onlyWithFavorites, user, query)
+
+	// Join with user_album_data to get favorite status (do this before onlyRoot filter)
+	query = query.
+		Joins("LEFT JOIN user_album_data ON user_album_data.album_id = albums.id AND user_album_data.user_id = ?", user.ID).
+		Order("COALESCE(user_album_data.favorite, false) DESC")
+
 	if onlyRoot != nil && *onlyRoot {
 
 		singleRootAlbumID := getSingleRootAlbumID(user)
 
 		if singleRootAlbumID != -1 && len(user.Albums) > 1 {
-			query = query.Where("parent_album_id = ?", singleRootAlbumID)
+			// Show root albums OR favorites
+			query = query.Where("parent_album_id = ? OR COALESCE(user_album_data.favorite, false) = true", singleRootAlbumID)
 		} else {
-			query = query.Where("parent_album_id IS NULL OR parent_album_id NOT IN (?)", userAlbumIDs)
+			// Show root albums OR favorites
+			query = query.Where("(parent_album_id IS NULL OR parent_album_id NOT IN (?)) OR COALESCE(user_album_data.favorite, false) = true", userAlbumIDs)
 		}
 	}
 
-	query = favoritesQuery(showEmpty, db, onlyWithFavorites, user, query)
+	// Handle ordering manually to prefix with table name (avoids ambiguity after JOIN)
+	if order != nil && order.OrderBy != nil {
+		direction := ""
+		if order.OrderDirection != nil && *order.OrderDirection == models.OrderDirectionDesc {
+			direction = " DESC"
+		}
+		query = query.Order("albums." + *order.OrderBy + direction)
+	}
 
-	query = models.FormatSQL(query, order, paginate)
+	query = models.FormatSQL(query, nil, paginate)
 
 	var albums []*models.Album
 	if err := query.Find(&albums).Error; err != nil {

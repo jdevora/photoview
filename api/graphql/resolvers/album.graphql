@@ -29,6 +29,9 @@ type Album {
 
   "A list of share tokens pointing to this album, owned by the logged in user"
   shares: [ShareToken!]!
+
+  "Whether or not the album is marked as favorite by the logged in user"
+  favorite: Boolean!
 }
 
 extend type Query {
@@ -57,4 +60,7 @@ extend type Mutation {
 
   "Assign a cover photo to an album"
   setAlbumCover(coverID: ID!): Album! @isAuthorized
+
+  "Mark or unmark an album as being a favorite"
+  favoriteAlbum(albumId: ID!, favorite: Boolean!): Album! @isAuthorized
 }

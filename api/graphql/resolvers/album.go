@@ -95,6 +95,27 @@ func (r *albumResolver) Shares(ctx context.Context, obj *models.Album) ([]*model
 	return shareTokens, nil
 }
 
+// Favorite is the resolver for the favorite field.
+func (r *albumResolver) Favorite(ctx context.Context, obj *models.Album) (bool, error) {
+	user := auth.UserFromContext(ctx)
+	if user == nil {
+		return false, nil
+	}
+
+	var userAlbumData models.UserAlbumData
+	result := r.DB(ctx).Where("user_id = ? AND album_id = ?", user.ID, obj.ID).First(&userAlbumData)
+
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+
+	if result.Error != nil {
+		return false, result.Error
+	}
+
+	return userAlbumData.Favorite, nil
+}
+
 // Takes album_id, resets album.cover_id to 0 (null)
 func (r *mutationResolver) ResetAlbumCover(ctx context.Context, albumID int) (*models.Album, error) {
 	user := auth.UserFromContext(ctx)
@@ -113,6 +134,16 @@ func (r *mutationResolver) SetAlbumCover(ctx context.Context, coverID int) (*mod
 	}
 
 	return actions.SetAlbumCover(r.DB(ctx), user, coverID)
+}
+
+// FavoriteAlbum is the resolver for the favoriteAlbum field.
+func (r *mutationResolver) FavoriteAlbum(ctx context.Context, albumID int, favorite bool) (*models.Album, error) {
+	user := auth.UserFromContext(ctx)
+	if user == nil {
+		return nil, auth.ErrUnauthorized
+	}
+
+	return user.FavoriteAlbum(r.DB(ctx), albumID, favorite)
 }
 
 // MyAlbums is the resolver for the myAlbums field.

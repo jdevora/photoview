@@ -22,6 +22,7 @@ export const ALBUM_GALLERY_FRAGMENT = gql`
     subAlbums(order: { order_by: "title", order_direction: $orderDirection }) {
       id
       title
+      favorite
       thumbnail {
         id
         thumbnail {

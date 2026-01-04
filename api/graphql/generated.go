@@ -60,6 +60,7 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Album struct {
+		Favorite    func(childComplexity int) int
 		FilePath    func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Media       func(childComplexity int, order *models.Ordering, paginate *models.Pagination, onlyFavorites *bool) int
@@ -160,6 +161,7 @@ type ComplexityRoot struct {
 		DeleteShareToken            func(childComplexity int, token string) int
 		DeleteUser                  func(childComplexity int, id int) int
 		DetachImageFaces            func(childComplexity int, imageFaceIDs []int) int
+		FavoriteAlbum               func(childComplexity int, albumID int, favorite bool) int
 		FavoriteMedia               func(childComplexity int, mediaID int, favorite bool) int
 		InitialSetupWizard          func(childComplexity int, username string, password string, rootPath string) int
 		MoveImageFaces              func(childComplexity int, imageFaceIDs []int, destinationFaceGroupID int) int
@@ -288,6 +290,7 @@ type AlbumResolver interface {
 	Thumbnail(ctx context.Context, obj *models.Album) (*models.Media, error)
 	Path(ctx context.Context, obj *models.Album) ([]*models.Album, error)
 	Shares(ctx context.Context, obj *models.Album) ([]*models.ShareToken, error)
+	Favorite(ctx context.Context, obj *models.Album) (bool, error)
 }
 type FaceGroupResolver interface {
 	ImageFaces(ctx context.Context, obj *models.FaceGroup, paginate *models.Pagination) ([]*models.ImageFace, error)
@@ -315,6 +318,7 @@ type MediaResolver interface {
 type MutationResolver interface {
 	ResetAlbumCover(ctx context.Context, albumID int) (*models.Album, error)
 	SetAlbumCover(ctx context.Context, coverID int) (*models.Album, error)
+	FavoriteAlbum(ctx context.Context, albumID int, favorite bool) (*models.Album, error)
 	SetFaceGroupLabel(ctx context.Context, faceGroupID int, label *string) (*models.FaceGroup, error)
 	CombineFaceGroups(ctx context.Context, destinationFaceGroupID int, sourceFaceGroupIDs []int) (*models.FaceGroup, error)
 	MoveImageFaces(ctx context.Context, imageFaceIDs []int, destinationFaceGroupID int) (*models.FaceGroup, error)
@@ -393,6 +397,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "Album.favorite":
+		if e.complexity.Album.Favorite == nil {
+			break
+		}
+
+		return e.complexity.Album.Favorite(childComplexity), true
 	case "Album.filePath":
 		if e.complexity.Album.FilePath == nil {
 			break
@@ -873,6 +883,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DetachImageFaces(childComplexity, args["imageFaceIDs"].([]int)), true
+	case "Mutation.favoriteAlbum":
+		if e.complexity.Mutation.FavoriteAlbum == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_favoriteAlbum_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FavoriteAlbum(childComplexity, args["albumId"].(int), args["favorite"].(bool)), true
 	case "Mutation.favoriteMedia":
 		if e.complexity.Mutation.FavoriteMedia == nil {
 			break
@@ -1823,6 +1844,22 @@ func (ec *executionContext) field_Mutation_detachImageFaces_args(ctx context.Con
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_favoriteAlbum_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "albumId", ec.unmarshalNID2int)
+	if err != nil {
+		return nil, err
+	}
+	args["albumId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "favorite", ec.unmarshalNBoolean2bool)
+	if err != nil {
+		return nil, err
+	}
+	args["favorite"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_favoriteMedia_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2496,6 +2533,8 @@ func (ec *executionContext) fieldContext_Album_subAlbums(ctx context.Context, fi
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -2558,6 +2597,8 @@ func (ec *executionContext) fieldContext_Album_parentAlbum(_ context.Context, fi
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -2742,6 +2783,8 @@ func (ec *executionContext) fieldContext_Album_path(_ context.Context, field gra
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -2789,6 +2832,35 @@ func (ec *executionContext) fieldContext_Album_shares(_ context.Context, field g
 				return ec.fieldContext_ShareToken_media(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ShareToken", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Album_favorite(ctx context.Context, field graphql.CollectedField, obj *models.Album) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Album_favorite,
+		func(ctx context.Context) (any, error) {
+			return ec.resolvers.Album().Favorite(ctx, obj)
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Album_favorite(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Album",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3611,6 +3683,8 @@ func (ec *executionContext) fieldContext_Media_album(_ context.Context, field gr
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -4651,6 +4725,8 @@ func (ec *executionContext) fieldContext_Mutation_resetAlbumCover(ctx context.Co
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -4727,6 +4803,8 @@ func (ec *executionContext) fieldContext_Mutation_setAlbumCover(ctx context.Cont
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -4739,6 +4817,84 @@ func (ec *executionContext) fieldContext_Mutation_setAlbumCover(ctx context.Cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setAlbumCover_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_favoriteAlbum(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_favoriteAlbum,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().FavoriteAlbum(ctx, fc.Args["albumId"].(int), fc.Args["favorite"].(bool))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.directives.IsAuthorized == nil {
+					var zeroVal *models.Album
+					return zeroVal, errors.New("directive isAuthorized is not implemented")
+				}
+				return ec.directives.IsAuthorized(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		ec.marshalNAlbum2ᚖgithubᚗcomᚋphotoviewᚋphotoviewᚋapiᚋgraphqlᚋmodelsᚐAlbum,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_favoriteAlbum(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Album_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Album_title(ctx, field)
+			case "media":
+				return ec.fieldContext_Album_media(ctx, field)
+			case "subAlbums":
+				return ec.fieldContext_Album_subAlbums(ctx, field)
+			case "parentAlbum":
+				return ec.fieldContext_Album_parentAlbum(ctx, field)
+			case "owner":
+				return ec.fieldContext_Album_owner(ctx, field)
+			case "filePath":
+				return ec.fieldContext_Album_filePath(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_Album_thumbnail(ctx, field)
+			case "path":
+				return ec.fieldContext_Album_path(ctx, field)
+			case "shares":
+				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_favoriteAlbum_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5999,6 +6155,8 @@ func (ec *executionContext) fieldContext_Mutation_userAddRootPath(ctx context.Co
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -6075,6 +6233,8 @@ func (ec *executionContext) fieldContext_Mutation_userRemoveRootAlbum(ctx contex
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -6445,6 +6605,8 @@ func (ec *executionContext) fieldContext_Query_myAlbums(ctx context.Context, fie
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -6508,6 +6670,8 @@ func (ec *executionContext) fieldContext_Query_album(ctx context.Context, field 
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -7704,6 +7868,8 @@ func (ec *executionContext) fieldContext_SearchResult_albums(_ context.Context, 
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -7975,6 +8141,8 @@ func (ec *executionContext) fieldContext_ShareToken_album(_ context.Context, fie
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -8278,6 +8446,8 @@ func (ec *executionContext) fieldContext_TimelineGroup_album(_ context.Context, 
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -8521,6 +8691,8 @@ func (ec *executionContext) fieldContext_User_albums(_ context.Context, field gr
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -8585,6 +8757,8 @@ func (ec *executionContext) fieldContext_User_rootAlbums(_ context.Context, fiel
 				return ec.fieldContext_Album_path(ctx, field)
 			case "shares":
 				return ec.fieldContext_Album_shares(ctx, field)
+			case "favorite":
+				return ec.fieldContext_Album_favorite(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Album", field.Name)
 		},
@@ -10829,6 +11003,42 @@ func (ec *executionContext) _Album(ctx context.Context, sel ast.SelectionSet, ob
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "favorite":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Album_favorite(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11826,6 +12036,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setAlbumCover":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setAlbumCover(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "favoriteAlbum":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_favoriteAlbum(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

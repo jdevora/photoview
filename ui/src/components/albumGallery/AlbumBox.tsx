@@ -1,7 +1,17 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import styled from 'styled-components'
 import { ProtectedImage } from '../photoGallery/ProtectedMedia'
 import { albumQuery_album_subAlbums } from '../../Pages/AlbumPage/__generated__/albumQuery'
+import { AlbumFavoriteButton } from './AlbumFavoriteButton'
+
+const AlbumBoxWrapper = styled(Link)`
+  position: relative;
+
+  &:hover .album-favorite-button {
+    opacity: 1;
+  }
+`
 
 interface AlbumBoxImageProps {
   src?: string
@@ -47,17 +57,29 @@ export const AlbumBox = ({ album, customLink, ...props }: AlbumBoxProps) => {
     'inline-block text-center text-gray-900 dark:text-gray-200 mx-3 my-2 xs:h-60 xs:w-[220px]'
 
   if (album) {
+    const albumWithFavorite = album as albumQuery_album_subAlbums & {
+      favorite?: boolean
+    }
+
     return (
-      <Link
+      <AlbumBoxWrapper
         to={customLink || `/album/${album.id}`}
         className={wrapperClasses}
         {...props}
       >
-        <AlbumBoxImage src={album.thumbnail?.thumbnail?.url} />
+        <div style={{ position: 'relative' }}>
+          <AlbumBoxImage src={album.thumbnail?.thumbnail?.url} />
+          {albumWithFavorite.favorite !== undefined && (
+            <AlbumFavoriteButton
+              albumId={album.id}
+              isFavorite={albumWithFavorite.favorite}
+            />
+          )}
+        </div>
         <p className="whitespace-nowrap overflow-hidden overflow-ellipsis">
           {album.title}
         </p>
-      </Link>
+      </AlbumBoxWrapper>
     )
   }
 
