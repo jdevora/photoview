@@ -9,6 +9,12 @@ import { OrderDirection, MediaType } from "./../../../__generated__/globalTypes"
 // GraphQL query operation: shareAlbumQuery
 // ====================================================
 
+export interface shareAlbumQuery_album_parentAlbum {
+  __typename: "Album";
+  id: string;
+  title: string;
+}
+
 export interface shareAlbumQuery_album_subAlbums_thumbnail_thumbnail {
   __typename: "MediaURL";
   /**
@@ -202,6 +208,10 @@ export interface shareAlbumQuery_album {
   __typename: "Album";
   id: string;
   title: string;
+  /**
+   * The album which contains this album
+   */
+  parentAlbum: shareAlbumQuery_album_parentAlbum | null;
   /**
    * The albums contained in this album
    */

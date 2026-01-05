@@ -168,6 +168,10 @@ func (r *queryResolver) Album(ctx context.Context, id int, tokenCredentials *mod
 
 		if shareToken.Album != nil {
 			if *shareToken.AlbumID == id {
+				// Preload ParentAlbum for breadcrumb navigation
+				if err := db.Preload("ParentAlbum").First(shareToken.Album).Error; err != nil {
+					return nil, err
+				}
 				return shareToken.Album, nil
 			}
 
@@ -179,6 +183,10 @@ func (r *queryResolver) Album(ctx context.Context, id int, tokenCredentials *mod
 			}
 
 			if len(subAlbum) > 0 {
+				// Preload ParentAlbum for breadcrumb navigation
+				if err := db.Preload("ParentAlbum").First(subAlbum[0]).Error; err != nil {
+					return nil, err
+				}
 				return subAlbum[0], nil
 			}
 		}
